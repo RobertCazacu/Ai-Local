@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -58,20 +59,47 @@ def embed_texts(
     progress_cb: Optional[Callable[[int, int, str], None]] = None,
     phase: str = "embeddings",
     row_info: Optional[List[str]] = None,
+    cache_dir: Optional[str] = None,
 ) -> np.ndarray:
     total = len(texts)
-    vecs: List[np.ndarray] = [None] * total  # type: ignore
+    vecs: List[Optional[np.ndarray]] = [None] * total
     done = 0
 
+    def cache_path_for(i: int) -> Optional[str]:
+        if not cache_dir:
+            return None
+        key = hashlib.sha1(f"{model}\n{texts[i]}".encode("utf-8")).hexdigest()
+        return os.path.join(cache_dir, f"{i:08d}_{key}.npy")
+
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
+        for i in range(total):
+            cpath = cache_path_for(i)
+            if not cpath:
+                continue
+            if os.path.exists(cpath):
+                vecs[i] = np.load(cpath).astype(np.float32)
+                done += 1
+
     if progress_cb:
-        progress_cb(0, total, phase)
+        progress_cb(done, total, phase)
+
+    missing_idxs = [i for i, v in enumerate(vecs) if v is None]
 
     with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
-        futures = {ex.submit(ollama_embed_one, texts[i], model): i for i in range(total)}
+        futures = {ex.submit(ollama_embed_one, texts[i], model): i for i in missing_idxs}
         for fut in as_completed(futures):
             i = futures[fut]
             try:
-                vecs[i] = fut.result()
+                emb = fut.result()
+                vecs[i] = emb
+
+                cpath = cache_path_for(i)
+                if cpath:
+                    tmp_path = f"{cpath}.tmp"
+                    with open(tmp_path, "wb") as tf:
+                        np.save(tf, emb)
+                    os.replace(tmp_path, cpath)
             except Exception as e:
                 info = row_info[i] if row_info and i < len(row_info) else f"index={i}"
                 preview = texts[i][:200].replace("\n", " ")
@@ -81,10 +109,15 @@ def embed_texts(
             if progress_cb:
                 progress_cb(done, total, phase)
 
-    return np.vstack(vecs)
+    if any(v is None for v in vecs):
+        raise RuntimeError("Nu toate embedding-urile au fost calculate.")
+
+    return np.vstack([v for v in vecs if v is not None])
 
 
 def normalize(mat: np.ndarray) -> np.ndarray:
+    if mat.size == 0:
+        raise ValueError("Nu pot normaliza o matrice goală.")
     n = np.linalg.norm(mat, axis=1, keepdims=True) + 1e-12
     return mat / n
 
@@ -147,6 +180,9 @@ def build_index(
     df[label_col] = df[label_col].astype(str).str.strip()
     df = df[df[label_col] != ""].reset_index(drop=True)
 
+    if df.empty:
+        raise ValueError("Nu există rânduri valide cu etichetă după filtrare.")
+
     # construim text + row_info (aliniat 1:1 cu texts)
     df["__text__"] = df.apply(lambda r: build_text(r, text_cols), axis=1)
 
@@ -165,6 +201,7 @@ def build_index(
         progress_cb=progress_cb,
         phase="build_embeddings",
         row_info=row_info,
+        cache_dir=os.path.join(out_dir, "build_cache"),
     )
     emb = normalize(emb)
 
@@ -250,7 +287,12 @@ def predict(
     top_matches = []
 
     N = base_emb.shape[0]
+    if N == 0:
+        raise RuntimeError("Indexul este gol. Rulează din nou build cu date valide.")
+
     k_eff = min(k, N)
+    if k_eff < 1:
+        raise ValueError("Parametrul k trebuie să fie cel puțin 1.")
 
     for i in range(sims_all.shape[0]):
         sims = sims_all[i]
