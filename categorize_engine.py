@@ -69,7 +69,7 @@ def embed_texts(
         if not cache_dir:
             return None
         key = hashlib.sha1(f"{model}\n{texts[i]}".encode("utf-8")).hexdigest()
-        return os.path.join(cache_dir, f"{i:08d}_{key}.npy")
+        return os.path.join(cache_dir, f"{key}.npy")
 
     if cache_dir:
         os.makedirs(cache_dir, exist_ok=True)
@@ -271,12 +271,13 @@ def predict(
         row_info = [f"ExcelRow={r}" for r in df["__excel_row__"].tolist()]
 
     q_emb = embed_texts(
-        df["__text__"].tolist(),
-        embed_model,
-        workers=workers,
-        progress_cb=progress_cb,
-        phase="predict_embeddings",
-        row_info=row_info,
+    df["__text__"].tolist(),
+    embed_model,
+    workers=workers,
+    progress_cb=progress_cb,
+    phase="predict_embeddings",
+    row_info=row_info,
+    cache_dir=os.path.join(out_dir, "predict_cache"),
     )
     q_emb = normalize(q_emb)
 

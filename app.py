@@ -5,7 +5,7 @@ import streamlit as st
 from categorize_engine import build_index, predict
 
 st.set_page_config(page_title="AI Categorii - Local", layout="wide")
-st.title("AI local: propunere categorie din fișiere Excel")
+st.title("AI local: Build și Predict for categories Trendyol")
 
 with st.sidebar:
     out_dir = st.text_input("Folder index (out_dir)", value="model_trendyol")
