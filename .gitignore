@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# modele / output / backup
+model_trendyol/
+Model_Trendyol_Backup/
+tmp_uploads/
+
+# Office / Excel (nu urc nimic)
+*.xls
+*.xlsx
+*.xlsm
+*.xltx
+*.xltm
+~$*.xls*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# folders generate / modele / temp
+model_trendyol/
+Model_Trendyol_Backup/
+tmp_uploads/
+Trendyol Categories/
