@@ -34,6 +34,26 @@ PERSISTENT_LABEL_COLUMNS = [
 def now_iso() -> str:
     return datetime.utcnow().isoformat()
 
+def _is_blank_csv(path: str) -> bool:
+    """
+    True dacă fișierul nu există, are 0 bytes sau conține doar whitespace/newlines.
+    """
+    if not os.path.exists(path):
+        return True
+    if os.path.getsize(path) == 0:
+        return True
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            chunk = f.read(4096)
+        return chunk.strip() == ""
+    except Exception:
+        # dacă nu îl putem citi, nu riscăm să-l suprascriem
+        return False
+
+
+def _write_header_csv(path: str, columns: List[str]) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    pd.DataFrame(columns=columns).to_csv(path, index=False)
 
 def ensure_store(store_dir: str) -> None:
     os.makedirs(store_dir, exist_ok=True)
@@ -73,10 +93,8 @@ def ensure_store(store_dir: str) -> None:
 
     for fname in ["corrections_gold.csv", "pseudo_labels.csv", "review_queue.csv"]:
         path = os.path.join(store_dir, fname)
-        if not os.path.exists(path):
-            pd.DataFrame(columns=PERSISTENT_LABEL_COLUMNS).to_csv(path, index=False)
-        elif os.path.getsize(path) == 0:
-            pd.DataFrame(columns=PERSISTENT_LABEL_COLUMNS).to_csv(path, index=False)
+    if _is_blank_csv(path):
+        _write_header_csv(path, PERSISTENT_LABEL_COLUMNS)
 
 
 def _load_manifest(store_dir: str) -> Dict:

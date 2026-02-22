@@ -6,7 +6,7 @@ from config_utils import load_config
 from jobs import job_context
 from store import ensure_store, ingest_file_incremental, init_store_from_legacy
 
-st.title("Ingest (Upload & Add to Build)")
+st.title("Insert new Products(Upload & Add to Build)")
 cfg = load_config()
 store_dir = cfg["store_dir"]
 ensure_store(store_dir)

@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+openpyxl
+requests
+rapidfuzz
+scikit-learn
+tqdm
+python-dateutil
+pyarrow
+faiss-cpu
