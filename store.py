@@ -10,6 +10,27 @@ import pandas as pd
 from embeddings import build_clean_text, content_hash, embed_texts_batched
 
 
+
+PERSISTENT_LABEL_COLUMNS = [
+    "SKU",
+    "Nume",
+    "Brand",
+    "Descriere",
+    "clean_text",
+    "content_hash",
+    "predicted_category_id",
+    "predicted_category_text",
+    "topk_candidates",
+    "confidence",
+    "margin",
+    "needs_review",
+    "final_category_id",
+    "final_category_text",
+    "source",
+    "created_at",
+    "updated_at",
+]
+
 def now_iso() -> str:
     return datetime.utcnow().isoformat()
 
@@ -53,7 +74,9 @@ def ensure_store(store_dir: str) -> None:
     for fname in ["corrections_gold.csv", "pseudo_labels.csv", "review_queue.csv"]:
         path = os.path.join(store_dir, fname)
         if not os.path.exists(path):
-            pd.DataFrame().to_csv(path, index=False)
+            pd.DataFrame(columns=PERSISTENT_LABEL_COLUMNS).to_csv(path, index=False)
+        elif os.path.getsize(path) == 0:
+            pd.DataFrame(columns=PERSISTENT_LABEL_COLUMNS).to_csv(path, index=False)
 
 
 def _load_manifest(store_dir: str) -> Dict:
