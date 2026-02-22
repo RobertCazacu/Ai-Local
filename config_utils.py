@@ -19,6 +19,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "MIN_GOLD_PER_CAT": 10,
     "topK": 5,
     "ui_port": 8501,
+    "active_catalog_path": "trendyol_categories_catalog.xlsx",
 }
 
 

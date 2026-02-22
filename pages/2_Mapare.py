@@ -12,7 +12,7 @@ store_dir = cfg["store_dir"]
 
 st.caption("Generează predicții; cazurile foarte sigure merg în pseudo_labels, restul în review queue.")
 file = st.file_uploader("Upload produse pentru mapare", type=["xlsx", "csv"], help="Poți urca un nou fișier pentru predict.")
-catalog_path = st.text_input("Catalog path", value="trendyol_categories_catalog.xlsx", help="Fișierul catalog folosit pentru maparea CategoryID -> Categoria Text.")
+catalog_path = st.text_input("Catalog path", value=cfg.get("active_catalog_path", "trendyol_categories_catalog.xlsx"), help="Fișierul catalog folosit pentru maparea CategoryID -> Categoria Text.")
 
 if file and st.button("Run Predict", help="Rulează predicția cu gating: auto-accept pentru cazurile sigure, review pentru cele neclare."):
     df = pd.read_excel(file) if file.name.lower().endswith("xlsx") else pd.read_csv(file)

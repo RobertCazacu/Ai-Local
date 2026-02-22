@@ -360,3 +360,13 @@ Pornire UI:
 Task Scheduler (Windows):
 - creezi task care rulează periodic:
   .venv\Scripts\python.exe retrain.py --store data_store --mode full
+
+11.1 Catalog Manager – build automat din folder
+- În pagina **Catalog Manager** există opțiunea **Build catalog from folder (Trendyol Categories)**.
+- Input: path local către folderul cu fișiere în format `"<ID> <Nume categorie>.xlsx"`.
+- Output în `data_store/catalog/`:
+  - `catalog_normalized_YYYYMMDD_HHMMSS.xlsx`
+  - `id_to_text.json`
+  - `text_to_id.json`
+  - `duplicates_YYYYMMDD_HHMMSS.xlsx` (dacă există duplicate)
+- După salvare, configurația `active_catalog_path` este actualizată automat pentru predict/export.
