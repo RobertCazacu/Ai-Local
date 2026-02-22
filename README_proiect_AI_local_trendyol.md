@@ -308,3 +308,55 @@ python categorize_engine.py predict --input new.xlsx --out_dir model_trendyol --
 
 5) UI:
 python -m streamlit run app.py
+
+------------------------------------------------------------
+11) Workflow incremental (nou)
+------------------------------------------------------------
+
+Structură store append-only:
+- data_store/manifest.json
+- data_store/shards/meta_XXXXX.csv + emb_XXXXX.npy
+- data_store/hash_index.sqlite (dedup pe content_hash)
+- data_store/corrections_gold.csv
+- data_store/pseudo_labels.csv
+- data_store/review_queue.csv
+- data_store/exports/
+- data_store/logs/
+
+Paginile UI (multipage Streamlit):
+- Dashboard (app.py)
+- Ingest
+- Mapare
+- Review Queue
+- Export easySales
+- Catalog Manager
+- Settings
+- Jobs & Logs
+
+Ingest incremental:
+- calculează normalize_text + content_hash pe text columns
+- dacă hash există în sqlite => duplicat (nu recalculează embedding)
+- dacă hash e nou => calculează embedding și creează shard nou
+- niciun shard vechi nu este suprascris
+
+Label intern vs export:
+- intern: CategoryID
+- export easySales: Categoria Text (mapare ID->Text din Catalog Manager)
+
+Gating predict:
+- auto-accept dacă trece: AUTO_ACCEPT_CONF + MIN_MARGIN + warm category + validator catalog
+- altfel produsul merge în review_queue.csv
+- corecțiile umane se salvează în corrections_gold.csv
+
+Retrain batch (fără LLM training):
+- python retrain.py --store data_store --mode centroids_only
+- python retrain.py --store data_store --mode full
+- produce centroids.npz și versiune în data_store/models/model_vXXX.npz
+
+Pornire UI:
+- dublu click Start_UI.bat
+- sau: python -m streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+
+Task Scheduler (Windows):
+- creezi task care rulează periodic:
+  .venv\Scripts\python.exe retrain.py --store data_store --mode full

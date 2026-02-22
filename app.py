@@ -1,142 +1,52 @@
+import json
 import os
+
 import pandas as pd
 import streamlit as st
 
-from categorize_engine import build_index, predict
+from config_utils import load_config
 
-st.set_page_config(page_title="AI Categorii - Local", layout="wide")
-st.title("AI local: propunere categorie din fișiere Excel")
+st.set_page_config(page_title="AI Local Incremental", layout="wide")
+cfg = load_config()
+store_dir = cfg["store_dir"]
 
-with st.sidebar:
-    out_dir = st.text_input("Folder index (out_dir)", value="model_trendyol")
-    embed_model = st.text_input("Model embeddings (Ollama)", value="nomic-embed-text")
-    workers = st.number_input("Workers", min_value=1, max_value=16, value=4)
-    k = st.number_input("k (vecini)", min_value=3, max_value=50, value=15)
-    min_conf = st.number_input("Prag încredere (min_conf)", min_value=0.1, max_value=0.95, value=0.55)
+st.title("AI Categorii Local - Workflow complet")
+st.caption("Dashboard pentru ingest incremental, mapare, review, export și retrain.")
 
-tab1, tab2 = st.tabs(["1) Build (învățare)", "2) Predict (mapare)"])
+manifest_path = os.path.join(store_dir, "manifest.json")
+if os.path.exists(manifest_path):
+    manifest = json.load(open(manifest_path, encoding="utf-8"))
+    shards = manifest.get("shards", [])
+else:
+    shards = []
 
-# -------------------------
-# TAB 1: BUILD
-# -------------------------
-with tab1:
-    st.subheader("Încarcă labeled_trendyol.xlsx și construiește indexul")
+gold_path = os.path.join(store_dir, "corrections_gold.csv")
+pseudo_path = os.path.join(store_dir, "pseudo_labels.csv")
+review_path = os.path.join(store_dir, "review_queue.csv")
+jobs_path = os.path.join(store_dir, "jobs.jsonl")
 
-    labeled_file = st.file_uploader("labeled_trendyol.xlsx", type=["xlsx"], key="labeled")
+def rows(path: str) -> int:
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return 0
+    try:
+        return len(pd.read_csv(path, dtype=str, keep_default_na=False))
+    except Exception:
+        return 0
 
-    if labeled_file is None:
-        st.info("Încarcă fișierul labeled_trendyol.xlsx ca să poți rula Build.")
-    else:
-        df = pd.read_excel(labeled_file)
-        st.write("Coloane detectate:", list(df.columns))
-        st.dataframe(df.head(20), use_container_width=True)
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Total shards", len(shards))
+col2.metric("Gold labels", rows(gold_path))
+col3.metric("Pseudo labels", rows(pseudo_path))
+col4.metric("Review queue", rows(review_path))
+col5.metric("Jobs", rows(jobs_path))
 
-        label_col_default = "Categorie" if "Categorie" in df.columns else df.columns[0]
-        label_col = st.selectbox(
-            "Coloana categorie (label_col)",
-            options=list(df.columns),
-            index=list(df.columns).index(label_col_default),
-        )
+st.info("Gold = corecții umane (adevăr de referință). Pseudo = auto-acceptate cu încredere mare. Review = cazuri neclare pentru validare umană.")
 
-        default_text_cols = [c for c in ["Nume", "Brand", "Descriere"] if c in df.columns]
-        if not default_text_cols:
-            default_text_cols = [df.columns[0]]
+if os.path.exists(jobs_path):
+    with open(jobs_path, "r", encoding="utf-8") as f:
+        lines = [x.strip() for x in f if x.strip()]
+    if lines:
+        st.subheader("Ultimele 5 evenimente job")
+        st.dataframe(pd.DataFrame([json.loads(l) for l in lines[-5:]]), use_container_width=True)
 
-        text_cols = st.multiselect(
-            "Coloane folosite pentru text (text_cols)",
-            options=list(df.columns),
-            default=default_text_cols,
-        )
-
-        if st.button("Build", key="build_btn"):
-            if not text_cols:
-                st.error("Alege măcar o coloană pentru text_cols.")
-            else:
-                os.makedirs("tmp_uploads", exist_ok=True)
-
-                labeled_path = os.path.join("tmp_uploads", "labeled_trendyol.xlsx")
-                with open(labeled_path, "wb") as f:
-                    f.write(labeled_file.getbuffer())
-
-                progress = st.progress(0)
-                status = st.empty()
-
-                def cb(done, total, phase):
-                    if total <= 0:
-                        return
-                    progress.progress(min(1.0, done / total))
-                    status.write(f"{phase}: {done}/{total}")
-
-                try:
-                    build_index(
-                        labeled_path=labeled_path,
-                        out_dir=out_dir,
-                        text_cols=text_cols,
-                        label_col=label_col,
-                        embed_model=embed_model,
-                        workers=int(workers),
-                        progress_cb=cb,  # trebuie să existe în categorize_engine.py
-                    )
-                    status.write("build: index finalizat")
-                    progress.progress(1.0)
-                    st.success(f"Index construit în: {out_dir}")
-                except Exception as e:
-                    st.exception(e)
-
-# -------------------------
-# TAB 2: PREDICT
-# -------------------------
-with tab2:
-    st.subheader("Încarcă new.xlsx și descarcă rezultat_mapare.xlsx")
-
-    new_file = st.file_uploader("new.xlsx", type=["xlsx"], key="new")
-
-    if new_file is None:
-        st.info("Încarcă fișierul new.xlsx ca să poți rula Predict.")
-    else:
-        df2 = pd.read_excel(new_file)
-        st.write("Coloane detectate:", list(df2.columns))
-        st.dataframe(df2.head(20), use_container_width=True)
-
-        if st.button("Predict", key="predict_btn"):
-            os.makedirs("tmp_uploads", exist_ok=True)
-
-            input_path = os.path.join("tmp_uploads", "new.xlsx")
-            output_path = os.path.join("tmp_uploads", "rezultat_mapare.xlsx")
-
-            with open(input_path, "wb") as f:
-                f.write(new_file.getbuffer())
-
-            progress = st.progress(0)
-            status = st.empty()
-
-            def cb(done, total, phase):
-                if total <= 0:
-                    return
-                progress.progress(min(1.0, done / total))
-                status.write(f"{phase}: {done}/{total}")
-
-            try:
-                predict(
-                    input_path=input_path,
-                    out_dir=out_dir,
-                    output_path=output_path,
-                    k=int(k),
-                    min_conf=float(min_conf),
-                    workers=int(workers),
-                    progress_cb=cb,  # trebuie să existe în categorize_engine.py
-                )
-                status.write("predict: finalizat")
-                progress.progress(1.0)
-
-                with open(output_path, "rb") as f:
-                    data = f.read()
-
-                st.download_button(
-                    label="Descarcă rezultat_mapare.xlsx",
-                    data=data,
-                    file_name="rezultat_mapare.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                )
-            except Exception as e:
-                st.exception(e)
+st.success("Folosește meniul din stânga (pages) pentru workflow complet.")
