@@ -13,12 +13,16 @@ model_trendyol/
 Model_Trendyol_Backup/
 tmp_uploads/
 
+
 # Office / Excel (nu urc nimic)
 *.xls
 *.xlsx
 *.xlsm
 *.xltx
 *.xltm
+*.logs
+*.log
+*.csv
 ~$*.xls*
 
 # OS

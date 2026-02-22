@@ -1,0 +1,16 @@
+{
+  "store_version": 1,
+  "embedding_model": "nomic-embed-text",
+  "embedding_dim": 768,
+  "created_at": "2026-02-22T08:17:41.997618",
+  "updated_at": "2026-02-22T09:24:10.913379",
+  "shards": [
+    {
+      "id": 1,
+      "meta_path": "data_store\\shards\\meta_00001.csv",
+      "emb_path": "data_store\\shards\\emb_00001.npy",
+      "rows": 58,
+      "created_at": "2026-02-22T09:24:10.913325"
+    }
+  ]
+}

@@ -69,7 +69,6 @@ def embed_texts(
         if not cache_dir:
             return None
         key = hashlib.sha1(f"{model}\n{texts[i]}".encode("utf-8")).hexdigest()
-        return os.path.join(cache_dir, f"{key}.npy")
 
     if cache_dir:
         os.makedirs(cache_dir, exist_ok=True)

@@ -1,0 +1,22 @@
+{
+  "out_dir": "model_trendyol",
+  "embed_model": "nomic-embed-text",
+  "workers": 4,
+  "k": 5,
+  "min_conf": 0.55,
+  "OLLAMA_URL": "http://localhost:11434",
+  "embedding_model": "nomic-embed-text",
+  "store_dir": "data_store",
+  "text_cols": [
+    "Nume",
+    "Brand",
+    "Descriere"
+  ],
+  "label_col": "CategoryID",
+  "AUTO_ACCEPT_CONF": 0.93,
+  "MIN_MARGIN": 0.05,
+  "MIN_GOLD_PER_CAT": 10,
+  "topK": 5,
+  "ui_port": 8501,
+  "active_catalog_path": "data_store/catalog\\catalog_normalized_20260222_103937.xlsx"
+}
